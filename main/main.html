@@ -1,0 +1,176 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Club Robotics cmc</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <link rel="stylesheet" href="main.css">
+
+    <link rel="icon" href="../photos/logo-rg.png" type="photos/png">
+
+
+
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <div class="logo-container">
+                <div class="logo">
+                    <img src="../photos/logo.png" alt="">
+                </div>
+                <div class="header-text">
+                    <h1>
+                         Club Robotics CMC
+                        </h1>
+                    <div class="subtitle">Challenge Timer System</div>
+                </div>
+            </div>
+            <div >
+                <div class="nav-tabs">
+                    <button class="tab-btn active" onclick="switchTab('competition')">
+                        <i class="fas fa-trophy"></i> Competition View
+                    </button>
+                    <button class="tab-btn" onclick="switchTab('ranking')">
+                        <i class="fas fa-medal"></i> Ranking
+                    </button>
+                    <button class="tab-btn" onclick="switchTab('admin')">
+                        <i class="fas fa-cog"></i> Admin Dashboard
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Challenge Explanation Modal -->
+        <div id="challengeModal" class="modal">
+            <div class="modal-content">
+                <div class="challenge-number" id="modalChallengeNumber"></div>
+                <h2 id="modalChallengeName"></h2>
+                <div class="challenge-desc" id="modalChallengeDesc"></div>
+                <button class="btn btn-primary" onclick="startChallengeTimer()">
+                    <i class="fas fa-play"></i> Start Challenge Timer!
+                </button>
+            </div>
+        </div>
+
+        <!-- Winner Modal -->
+        <div id="winnerModal" class="winner-modal">
+            <div class="winner-content" id="winnerContent">
+                <div class="winer-header">
+                    <h2>WINNER!</h2>
+                    <button class="btn btn-primary" onclick="closeWinnerModal()">
+                    <i class="fas fa-times"></i> Close
+                </button>
+                </div>
+                
+                <div class="winner-team" id="winnerTeamName"></div>
+                <div class="winner-details" id="winnerDetails"></div>
+                
+            </div>
+        </div>
+
+        <!-- Competition View Tab -->
+        <div id="competition" class="tab-content active">
+            <div class="global-timer">
+                <h2 ><i class="fas fa-stopwatch"></i> Challenge Control</h2>
+                
+                <div class="challenge-selector">
+                    
+                    <select id="challengeSelect" onchange="updateSelectedChallenge()" style="width: 50%;">
+                        <option value="">-- Select a Challenge --</option>
+                    </select>
+                </div>
+
+                <div class="timer-info" id="currentChallengeInfo">Select a challenge to begin</div>
+                <div class="timer-display" id="globalTimerDisplay">00:00:00</div>
+                
+                <div style="text-align: center;">
+                    <button class="btn btn-primary" id="startBtn" onclick="showChallengeModal()" disabled>
+                        <i class="fas fa-play"></i> Start Competition
+                    </button>
+                    <button class="btn btn-danger" id="stopBtn" onclick="stopAllTimers()" disabled>
+                        <i class="fas fa-stop"></i> Stop & Save Challenge
+                    </button>
+                    <button class="btn btn-warning" onclick="showWinner()">
+                        <i class="fas fa-crown"></i> Announce Winner
+                    </button>
+                </div>
+            </div>
+
+            <div class="section">
+                <h2><i class="fas fa-users"></i> Teams Progress</h2>
+                <div class="teams-grid" id="teamsGrid"></div>
+            </div>
+        </div>
+
+        <!-- Ranking Tab -->
+        <div id="ranking" class="tab-content">
+            <div class="section">
+                <h2><i class="fas fa-medal"></i> Team Rankings</h2>
+                <div id="rankingContainer"></div>
+            </div>
+        </div>
+
+        <!-- Admin Dashboard Tab -->
+        <div id="admin" class="tab-content">
+            <div class="section">
+                <h2><i class="fas fa-users-cog"></i> Manage Teams</h2>
+                <div class="form-group">
+                    <label><i class="fas fa-tag"></i> Team Name</label>
+                    <input type="text" id="teamNameInput" placeholder="Enter team name">
+                </div>
+                <div class="form-group">
+                    <label><i class="fas fa-user"></i> Team Members</label>
+                    <div class="member-input-group">
+                        <input type="text" id="memberNameInput" placeholder="Enter member name" onkeypress="if(event.key==='Enter') addMemberToTemp()">
+                        <button class="btn btn-secondary" onclick="addMemberToTemp()">
+                            <i class="fas fa-plus"></i> Add
+                        </button>
+                    </div>
+                    <div id="tempMembers"></div>
+                </div>
+                <button class="btn btn-primary" onclick="addTeam()">
+                    <i class="fas fa-plus-circle"></i> Add Team
+                </button>
+                
+                <div class="challenge-list" id="teamsList"></div>
+            </div>
+
+            <div class="section">
+                <h2><i class="fas fa-tasks"></i> Manage Challenges</h2>
+                <div class="form-group">
+                    <label><i class="fas fa-heading"></i> Challenge Name</label>
+                    <input type="text" id="challengeNameInput" placeholder="Enter challenge name">
+                </div>
+                <div class="form-group">
+                    <label><i class="fas fa-clock"></i> Duration (minutes)</label>
+                    <input type="number" id="challengeDurationInput" placeholder="Enter duration in minutes" min="1">
+                </div>
+                <div class="form-group">
+                    <label><i class="fas fa-dumbbell"></i> Number of Exercises</label>
+                    <input type="number" id="challengeExercisesInput" placeholder="Enter number of exercises (2-5 recommended)" min="1" max="10">
+                </div>
+                <div class="form-group">
+                    <label><i class="fas fa-align-left"></i> Description & Instructions</label>
+                    <textarea id="challengeDescInput" placeholder="Enter detailed challenge description and instructions..." rows="4"></textarea>
+                </div>
+                <button class="btn btn-primary" onclick="addChallenge()">
+                    <i class="fas fa-plus-circle"></i> Add Challenge
+                </button>
+                
+                <div class="challenge-list" id="challengesList"></div>
+            </div>
+
+            <div class="section">
+                <h2><i class="fas fa-exclamation-triangle"></i> Danger Zone</h2>
+                <button class="btn btn-danger" onclick="resetEverything()">
+                    <i class="fas fa-trash-alt"></i> Reset Everything
+                </button>
+                <button class="btn btn-start" onclick="downloadLocalStorage()">Download data</button>
+            </div>
+        </div>
+    </div>
+
+    <script src="main.js"></script>
+</body>
+</html>
