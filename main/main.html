@@ -1,5 +1,6 @@
 <!DOCTYPE html>
 <html lang="en">
+
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -12,6 +13,7 @@
 
 
 </head>
+
 <body>
     <div class="container">
         <div class="header">
@@ -21,12 +23,12 @@
                 </div>
                 <div class="header-text">
                     <h1>
-                         Club Robotics CMC
-                        </h1>
+                        Club Robotics CMC
+                    </h1>
                     <div class="subtitle">Challenge Timer System</div>
                 </div>
             </div>
-            <div >
+            <div>
                 <div class="nav-tabs">
                     <button class="tab-btn active" onclick="switchTab('competition')">
                         <i class="fas fa-trophy"></i> Competition View
@@ -59,23 +61,23 @@
                 <div class="winer-header">
                     <h2>WINNER!</h2>
                     <button class="btn btn-primary" onclick="closeWinnerModal()">
-                    <i class="fas fa-times"></i> Close
-                </button>
+                        <i class="fas fa-times"></i> Close
+                    </button>
                 </div>
-                
+
                 <div class="winner-team" id="winnerTeamName"></div>
                 <div class="winner-details" id="winnerDetails"></div>
-                
+
             </div>
         </div>
 
         <!-- Competition View Tab -->
         <div id="competition" class="tab-content active">
             <div class="global-timer">
-                <h2 ><i class="fas fa-stopwatch"></i> Challenge Control</h2>
-                
+                <h2><i class="fas fa-stopwatch"></i> Challenge Control</h2>
+
                 <div class="challenge-selector">
-                    
+
                     <select id="challengeSelect" onchange="updateSelectedChallenge()" style="width: 50%;">
                         <option value="">-- Select a Challenge --</option>
                     </select>
@@ -83,7 +85,7 @@
 
                 <div class="timer-info" id="currentChallengeInfo">Select a challenge to begin</div>
                 <div class="timer-display" id="globalTimerDisplay">00:00:00</div>
-                
+
                 <div style="text-align: center;">
                     <button class="btn btn-primary" id="startBtn" onclick="showChallengeModal()" disabled>
                         <i class="fas fa-play"></i> Start Competition
@@ -122,7 +124,8 @@
                 <div class="form-group">
                     <label><i class="fas fa-user"></i> Team Members</label>
                     <div class="member-input-group">
-                        <input type="text" id="memberNameInput" placeholder="Enter member name" onkeypress="if(event.key==='Enter') addMemberToTemp()">
+                        <input type="text" id="memberNameInput" placeholder="Enter member name"
+                            onkeypress="if(event.key==='Enter') addMemberToTemp()">
                         <button class="btn btn-secondary" onclick="addMemberToTemp()">
                             <i class="fas fa-plus"></i> Add
                         </button>
@@ -132,7 +135,7 @@
                 <button class="btn btn-primary" onclick="addTeam()">
                     <i class="fas fa-plus-circle"></i> Add Team
                 </button>
-                
+
                 <div class="challenge-list" id="teamsList"></div>
             </div>
 
@@ -148,16 +151,23 @@
                 </div>
                 <div class="form-group">
                     <label><i class="fas fa-dumbbell"></i> Number of Exercises</label>
-                    <input type="number" id="challengeExercisesInput" placeholder="Enter number of exercises (2-5 recommended)" min="1" max="10">
+                    <input type="number" id="challengeExercisesInput"
+                        placeholder="Enter number of exercises (2-5 recommended)" min="1" max="10">
+                </div>
+                <div class="form-group">
+                    <label><i class="fas fa-coins"></i> Points Per Exercise</label>
+                    <input type="number" id="challengePointsPerExerciseInput"
+                        placeholder="Enter points for each exercise (default: 50)" min="1" value="50">
                 </div>
                 <div class="form-group">
                     <label><i class="fas fa-align-left"></i> Description & Instructions</label>
-                    <textarea id="challengeDescInput" placeholder="Enter detailed challenge description and instructions..." rows="4"></textarea>
+                    <textarea id="challengeDescInput"
+                        placeholder="Enter detailed challenge description and instructions..." rows="4"></textarea>
                 </div>
                 <button class="btn btn-primary" onclick="addChallenge()">
                     <i class="fas fa-plus-circle"></i> Add Challenge
                 </button>
-                
+
                 <div class="challenge-list" id="challengesList"></div>
             </div>
 
@@ -173,4 +183,5 @@
 
     <script src="main.js"></script>
 </body>
+
 </html>

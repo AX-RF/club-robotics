@@ -14,16 +14,22 @@ function loadData() {
 
     if (storedTeams) {
         teams = JSON.parse(storedTeams);
-        // Ensure all teams have required properties
         teams = teams.map(team => ({
             id: team.id,
             name: team.name,
             members: team.members || [],
             totalScore: team.totalScore || 0,
-            challengeScores: team.challengeScores || {} // {challengeId: {exercises: {exerciseIndex: 'done'|'failed'}}}
+            challengeScores: team.challengeScores || {}
         }));
     }
-    if (storedChallenges) challenges = JSON.parse(storedChallenges);
+    if (storedChallenges) {
+        challenges = JSON.parse(storedChallenges);
+        // Ensure all challenges have pointsPerExercise (default to 50 if missing)
+        challenges = challenges.map(c => ({
+            ...c,
+            pointsPerExercise: c.pointsPerExercise || 50
+        }));
+    }
 }
 
 // Save data to localStorage
@@ -44,7 +50,6 @@ function switchTab(tabName) {
     document.getElementById(tabName).classList.add('active');
     event.target.closest('.tab-btn').classList.add('active');
     
-    // Refresh the view when switching tabs
     if (tabName === 'competition') {
         renderTeamsGrid();
     } else if (tabName === 'ranking') {
@@ -119,6 +124,7 @@ function deleteTeam(teamId) {
         saveData();
         renderTeamsList();
         renderTeamsGrid();
+        renderRanking();
     }
 }
 
@@ -127,6 +133,7 @@ function addChallenge() {
     const name = document.getElementById('challengeNameInput').value.trim();
     const duration = parseInt(document.getElementById('challengeDurationInput').value);
     const numExercises = parseInt(document.getElementById('challengeExercisesInput').value);
+    const pointsPerExercise = parseInt(document.getElementById('challengePointsPerExerciseInput').value);
     const description = document.getElementById('challengeDescInput').value.trim();
 
     if (!name) {
@@ -144,6 +151,11 @@ function addChallenge() {
         return;
     }
 
+    if (!pointsPerExercise || pointsPerExercise < 1) {
+        alert('Please enter valid points per exercise (minimum 1)');
+        return;
+    }
+
     if (!description) {
         alert('Please enter a challenge description');
         return;
@@ -154,6 +166,7 @@ function addChallenge() {
         name: name,
         duration: duration,
         numExercises: numExercises,
+        pointsPerExercise: pointsPerExercise, // This is the key field
         description: description
     };
 
@@ -163,10 +176,12 @@ function addChallenge() {
     document.getElementById('challengeNameInput').value = '';
     document.getElementById('challengeDurationInput').value = '';
     document.getElementById('challengeExercisesInput').value = '';
+    document.getElementById('challengePointsPerExerciseInput').value = '50';
     document.getElementById('challengeDescInput').value = '';
     
     renderChallengesList();
     updateChallengeSelect();
+    alert(`Challenge added! Each completed exercise will award ${pointsPerExercise} points.`);
 }
 
 // Delete a challenge
@@ -184,7 +199,7 @@ function updateChallengeSelect() {
     const select = document.getElementById('challengeSelect');
     select.innerHTML = '<option value="">-- Select a Challenge --</option>' +
         challenges.map((c, i) => 
-            `<option value="${c.id}">Challenge ${i + 1}: ${c.name} (${c.numExercises} exercises, ${c.duration} min)</option>`
+            `<option value="${c.id}">Challenge ${i + 1}: ${c.name} (${c.numExercises} exercises × ${c.pointsPerExercise}pts = ${c.numExercises * c.pointsPerExercise}pts max)</option>`
         ).join('');
 }
 
@@ -198,7 +213,7 @@ function updateSelectedChallenge() {
         startBtn.disabled = false;
         const challenge = challenges.find(c => c.id === currentChallengeId);
         document.getElementById('currentChallengeInfo').innerHTML = 
-            `Selected: ${challenge.name} (${challenge.numExercises} exercises)`;
+            `<i class="fas fa-info-circle"></i> Selected: ${challenge.name} (${challenge.numExercises} exercises × ${challenge.pointsPerExercise}pts = ${challenge.numExercises * challenge.pointsPerExercise}pts max)`;
     } else {
         startBtn.disabled = true;
         document.getElementById('currentChallengeInfo').innerHTML = 
@@ -224,8 +239,8 @@ function showChallengeModal() {
     document.getElementById('modalChallengeDesc').innerHTML = `
         <strong>Duration:</strong> ${challenge.duration} minutes<br>
         <strong>Exercises:</strong> ${challenge.numExercises}<br>
-        <strong>Points per exercise:</strong> 50 points<br>
-        <strong>Maximum score:</strong> ${challenge.numExercises * 50} points<br><br>
+        <strong>Points per exercise:</strong> ${challenge.pointsPerExercise} points<br>
+        <strong>Maximum score:</strong> ${challenge.numExercises * challenge.pointsPerExercise} points<br><br>
         <strong>Description:</strong><br>
         ${challenge.description}
     `;
@@ -249,7 +264,6 @@ function startChallengeTimer() {
 
     const challenge = challenges.find(c => c.id === currentChallengeId);
 
-    // Initialize all teams for this challenge
     teams.forEach(team => {
         if (!team.challengeScores[currentChallengeId]) {
             team.challengeScores[currentChallengeId] = {
@@ -263,7 +277,7 @@ function startChallengeTimer() {
     document.getElementById('challengeSelect').disabled = true;
 
     document.getElementById('currentChallengeInfo').innerHTML = 
-        `<i class="fas fa-running"></i> Running: ${challenge.name} (${challenge.numExercises} exercises)`;
+        `<i class="fas fa-running"></i> Running: ${challenge.name} (${challenge.numExercises} exercises × ${challenge.pointsPerExercise}pts each)`;
 
     timerInterval = setInterval(updateGlobalTimer, 100);
     renderTeamsGrid();
@@ -286,36 +300,37 @@ function updateGlobalTimer() {
     document.getElementById('globalTimerDisplay').textContent = 
         `${String(minutes).padStart(2, '0')}:${String(seconds).padStart(2, '0')}`;
 
-    // Auto-stop when time is up
     if (remaining <= 0) {
         stopAllTimers(true);
     }
 }
 
-// Mark exercise as done or failed
+// Mark exercise as done or failed - THIS IS WHERE POINTS ARE AWARDED
 function markExercise(teamId, exerciseIndex, status) {
     const team = teams.find(t => t.id === teamId);
     if (!team || !currentChallengeId) return;
+
+    const challenge = challenges.find(c => c.id === currentChallengeId);
+    if (!challenge) return;
 
     if (!team.challengeScores[currentChallengeId]) {
         team.challengeScores[currentChallengeId] = { exercises: {} };
     }
 
+    // Mark the exercise status
     team.challengeScores[currentChallengeId].exercises[exerciseIndex] = status;
 
-    // Calculate score for this challenge
-    let challengeScore = 0;
-    Object.values(team.challengeScores[currentChallengeId].exercises).forEach(s => {
-        if (s === 'done') challengeScore += 50;
-    });
-
-    // Update total score
+    // Recalculate total score using EACH challenge's specific pointsPerExercise
     team.totalScore = 0;
     Object.keys(team.challengeScores).forEach(chalId => {
         const chalData = team.challengeScores[chalId];
-        if (chalData && chalData.exercises) {
+        const chal = challenges.find(c => c.id == chalId);
+        if (chalData && chalData.exercises && chal) {
             Object.values(chalData.exercises).forEach(s => {
-                if (s === 'done') team.totalScore += 50;
+                if (s === 'done') {
+                    // Add the specific points for THIS challenge
+                    team.totalScore += chal.pointsPerExercise;
+                }
             });
         }
     });
@@ -323,6 +338,11 @@ function markExercise(teamId, exerciseIndex, status) {
     saveData();
     renderTeamsGrid();
     renderRanking();
+    
+    // Optional: Show feedback
+    if (status === 'done') {
+        console.log(`Team ${team.name} earned ${challenge.pointsPerExercise} points! Total: ${team.totalScore}`);
+    }
 }
 
 // Stop all timers
@@ -338,7 +358,6 @@ function stopAllTimers(autoStop = false) {
     timerRunning = false;
     clearInterval(timerInterval);
 
-    // Mark all incomplete exercises as failed
     const challenge = challenges.find(c => c.id === currentChallengeId);
     if (challenge) {
         teams.forEach(team => {
@@ -387,12 +406,10 @@ function showWinner() {
         return;
     }
 
-    // Sort teams by total score (descending - higher is better)
     const sortedTeams = [...teamsWithScores].sort((a, b) => b.totalScore - a.totalScore);
     
     createConfetti();
     
-    // Build podium for top 3
     let podiumHTML = '<div class="podium-container">';
     
     for (let i = 0; i < Math.min(3, sortedTeams.length); i++) {
@@ -425,25 +442,7 @@ function showWinner() {
     
     podiumHTML += '</div>';
 
-    // Show detailed results for winner
-    const winner = sortedTeams[0];
-    let detailsHTML = podiumHTML + `
-    `;
-
-    challenges.forEach((challenge, index) => {
-        const chalScore = winner.challengeScores[challenge.id];
-        if (chalScore && chalScore.exercises) {
-            let points = 0;
-            Object.values(chalScore.exercises).forEach(s => {
-                if (s === 'done') points += 50;
-            });
-        } else {
-        }
-    });
-
-    detailsHTML += '</div></div>';
-    
-    document.getElementById('winnerDetails').innerHTML = detailsHTML;
+    document.getElementById('winnerDetails').innerHTML = podiumHTML;
     document.getElementById('winnerModal').classList.add('active');
 }
 
@@ -469,6 +468,61 @@ function closeWinnerModal() {
     document.getElementById('winnerModal').classList.remove('active');
 }
 
+// Manual point adjustment functions
+function showAddPointsModal(teamId) {
+    const team = teams.find(t => t.id === teamId);
+    if (!team) return;
+    
+    const points = prompt(`Add points to "${team.name}"\n\nCurrent score: ${team.totalScore} points\n\nEnter points to add:`, '0');
+    
+    if (points === null) return; // User cancelled
+    
+    const pointsToAdd = parseInt(points);
+    
+    if (isNaN(pointsToAdd) || pointsToAdd < 0) {
+        alert('Please enter a valid positive number');
+        return;
+    }
+    
+    if (pointsToAdd === 0) {
+        alert('No points added');
+        return;
+    }
+    
+    team.totalScore += pointsToAdd;
+    saveData();
+    renderRanking();
+    renderTeamsGrid();
+    alert(`✅ Added ${pointsToAdd} points to "${team.name}"\n\nNew total: ${team.totalScore} points`);
+}
+
+function showMinusPointsModal(teamId) {
+    const team = teams.find(t => t.id === teamId);
+    if (!team) return;
+    
+    const points = prompt(`Subtract points from "${team.name}"\n\nCurrent score: ${team.totalScore} points\n\nEnter points to subtract:`, '0');
+    
+    if (points === null) return; // User cancelled
+    
+    const pointsToMinus = parseInt(points);
+    
+    if (isNaN(pointsToMinus) || pointsToMinus < 0) {
+        alert('Please enter a valid positive number');
+        return;
+    }
+    
+    if (pointsToMinus === 0) {
+        alert('No points subtracted');
+        return;
+    }
+    
+    team.totalScore = Math.max(0, team.totalScore - pointsToMinus); // Don't go below 0
+    saveData();
+    renderRanking();
+    renderTeamsGrid();
+    alert(`✅ Subtracted ${pointsToMinus} points from "${team.name}"\n\nNew total: ${team.totalScore} points`);
+}
+
 // Render ranking page
 function renderRanking() {
     const container = document.getElementById('rankingContainer');
@@ -487,11 +541,9 @@ function renderRanking() {
         return;
     }
 
-    // Sort teams by total score (descending - higher is better)
     const sortedTeams = [...teamsWithScores].sort((a, b) => b.totalScore - a.totalScore);
 
-    // Build podium for top 3
-    let html = '<h3 style="text-align: center; color: #2596be; margin-bottom: 80px; font-size: 32px; font-weight: 800; text-shadow: 2px 2px 4px rgba(0,0,0,0.1);"> TOP 3 CHAMPIONS </h3>';
+    let html = '<h3 style="text-align: center; color: #2596be; margin-bottom: 80px; font-size: 32px; font-weight: 800; text-shadow: 2px 2px 4px rgba(0,0,0,0.1);"> TOP 3 CHAMPIONS</h3>';
     html += '<div class="podium-container">';
     
     for (let i = 0; i < Math.min(3, sortedTeams.length); i++) {
@@ -527,7 +579,7 @@ function renderRanking() {
                 ${rankLabel}
                 <div class="rank-number">${rankEmoji}</div>
                 <div class="team-name">${team.name}</div>
-                <div class="team-time"> ${team.totalScore} PTS</div>
+                <div class="team-time">${team.totalScore} pts</div>
                 <div class="team-members-list">
                     <i class="fas fa-user-friends"></i> ${team.members.join(', ')}
                 </div>
@@ -540,8 +592,7 @@ function renderRanking() {
     
     html += '</div>';
 
-    // Build full ranking table
-    html += '<h3 style="text-align: center; color: #2596be; margin: 50px 0 30px; font-size: 24px;"> Complete Rankings</h3>';
+    html += '<h3 style="text-align: center; color: #2596be; margin: 50px 0 30px; font-size: 24px;">Complete Rankings</h3>';
     html += `
         <table class="ranking-table">
             <thead>
@@ -551,6 +602,7 @@ function renderRanking() {
                     <th>Total Score</th>
                     <th>Members</th>
                     <th>Challenges</th>
+                    <th>Actions</th>
                 </tr>
             </thead>
             <tbody>
@@ -574,6 +626,14 @@ function renderRanking() {
                 <td class="time-col">${team.totalScore} pts</td>
                 <td class="members-col">${team.members.join(', ')}</td>
                 <td class="challenges-col">${completedChallenges} / ${challenges.length}</td>
+                <td class="actions-col">
+                    <button class="btn btn-mini btn-success" onclick="showAddPointsModal(${team.id})" title="Add points">
+                        <i class="fas fa-plus"></i>
+                    </button>
+                    <button class="btn btn-mini btn-danger" onclick="showMinusPointsModal(${team.id})" title="Subtract points">
+                        <i class="fas fa-minus"></i>
+                    </button>
+                </td>
             </tr>
         `;
     });
@@ -589,7 +649,6 @@ function renderRanking() {
 // Render teams grid
 function renderTeamsGrid() {
     const grid = document.getElementById('teamsGrid');
-    console.log('Rendering teams grid');
     
     if (!grid) {
         console.error('teamsGrid element not found!');
@@ -609,14 +668,12 @@ function renderTeamsGrid() {
         let exerciseButtons = '';
 
         if (challenge && timerRunning) {
-            // Calculate current challenge score
             const chalData = team.challengeScores[currentChallengeId];
             if (chalData && chalData.exercises) {
                 Object.values(chalData.exercises).forEach(s => {
-                    if (s === 'done') currentChallengeScore += 50;
+                    if (s === 'done') currentChallengeScore += challenge.pointsPerExercise;
                 });
 
-                // Create exercise buttons
                 exerciseButtons = '<div class="exercise-controls">';
                 for (let i = 0; i < challenge.numExercises; i++) {
                     const status = chalData.exercises[i];
@@ -638,7 +695,7 @@ function renderTeamsGrid() {
                                     <i class="fas fa-times"></i> Failed
                                 </button>
                             </div>
-                            ${isDone ? '<div class="exercise-status">✓ Completed (+50pts)</div>' : ''}
+                            ${isDone ? `<div class="exercise-status">✓ Completed (+${challenge.pointsPerExercise}pts)</div>` : ''}
                             ${isFailed ? '<div class="exercise-status failed-text">✗ Failed (0pts)</div>' : ''}
                         </div>
                     `;
@@ -660,12 +717,11 @@ function renderTeamsGrid() {
                 <h3><i class="fas fa-users"></i> ${team.name}</h3>
                 <div class="team-members">
                     <strong><i class="fas fa-user-friends"></i> Members:</strong><br>
-                    <div class="memberNames">${team.members.join(', ')}</div>
-
+                    ${team.members.join(', ')}
                 </div>
                 <div class="team-info">
                     <p><strong><i class="fas fa-star"></i> Total Score:</strong> ${teamScore} points</p>
-                    ${timerRunning && challenge ? `<p><strong><i class="fas fa-trophy"></i> Current Challenge:</strong> ${currentChallengeScore} pts</p>` : ''}
+                    ${timerRunning && challenge ? `<p><strong><i class="fas fa-trophy"></i> Current Challenge:</strong> ${currentChallengeScore} pts (${challenge.pointsPerExercise}pts per exercise)</p>` : ''}
                     <p><strong><i class="fas fa-check-circle"></i> Completed:</strong> ${completedChallenges} / ${challenges.length} challenges</p>
                 </div>
                 ${exerciseButtons}
@@ -726,7 +782,8 @@ function renderChallengesList() {
             <h4><i class="fas fa-flag-checkered"></i> Challenge ${index + 1}: ${challenge.name}</h4>
             <p><strong><i class="fas fa-clock"></i> Duration:</strong> ${challenge.duration} minutes</p>
             <p><strong><i class="fas fa-dumbbell"></i> Exercises:</strong> ${challenge.numExercises}</p>
-            <p><strong><i class="fas fa-star"></i> Max Score:</strong> ${challenge.numExercises * 50} points (50 pts per exercise)</p>
+            <p><strong><i class="fas fa-coins"></i> Points per Exercise:</strong> ${challenge.pointsPerExercise} points</p>
+            <p><strong><i class="fas fa-star"></i> Max Score:</strong> ${challenge.numExercises * challenge.pointsPerExercise} points</p>
             <p><strong><i class="fas fa-align-left"></i> Description:</strong> ${challenge.description}</p>
             <div class="actions">
                 <button class="btn btn-danger" onclick="deleteChallenge(${challenge.id})">
@@ -735,6 +792,25 @@ function renderChallengesList() {
             </div>
         </div>
     `).join('');
+}
+
+
+// Download localStorage data
+function downloadLocalStorage() {
+    const data = {
+        teams: teams,
+        challenges: challenges,
+        exportDate: new Date().toISOString()
+    };
+    
+    const dataStr = JSON.stringify(data, null, 2);
+    const dataBlob = new Blob([dataStr], {type: 'application/json'});
+    const url = URL.createObjectURL(dataBlob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = `competition-data-${new Date().toISOString().split('T')[0]}.json`;
+    link.click();
+    URL.revokeObjectURL(url);
 }
 
 // Reset everything
